@@ -8,6 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- STEP C.1: ADD THE AMPLIFY JAVASCRIPT LIBRARY -->
+    <script>
+        window.global = window;
+        var exports = {};
+    </script>
+    <script src="https://unpkg.com/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
+
     <style>
         body {
             font-family: 'Google Sans', 'Inter', sans-serif;
@@ -16,128 +24,120 @@
         .dark body {
             background-color: #131314;
         }
-        /* Custom scrollbar for a more polished look */
+        amplify-authenticator {
+            --amplify-colors-background-primary: #f0f4f9;
+            --amplify-colors-background-secondary: #ffffff;
+            --amplify-colors-font-primary: #1f2937;
+            --amplify-colors-font-secondary: #4b5563;
+            --amplify-colors-border-primary: #d1d5db;
+            --amplify-colors-brand-primary-80: #3b82f6;
+            --amplify-colors-brand-primary-100: #2563eb;
+        }
+        .dark body {
+             background-color: #131314;
+        }
+        .dark amplify-authenticator {
+            --amplify-colors-background-primary: #131314;
+            --amplify-colors-background-secondary: #1e1f20;
+            --amplify-colors-font-primary: #f9fafb;
+            --amplify-colors-font-secondary: #d1d5db;
+            --amplify-colors-border-primary: #4b5563;
+        }
+        /* Other styles from previous version */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 10px; }
         .dark ::-webkit-scrollbar-thumb { background: #4a5568; }
-        ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
-        .dark ::-webkit-scrollbar-thumb:hover { background: #718096; }
-
-        .chat-message {
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-        @keyframes fadeIn {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        #chat-input:focus {
-            box-shadow: none;
-        }
-        .gemini-gradient-text {
-            background: -webkit-linear-gradient(45deg, #4285f4, #9b72cb, #d96570, #f2a600);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-         .sidebar-item.active {
-            background-color: #e8f0fe;
-        }
-        .dark .sidebar-item.active {
-            background-color: #1e1f20;
-        }
-        /* Thinking dots animation */
-        .thinking-dots span {
-            animation-name: blink;
-            animation-duration: 1.4s;
-            animation-iteration-count: infinite;
-            animation-fill-mode: both;
-        }
-        .thinking-dots span:nth-child(2) {
-            animation-delay: .2s;
-        }
-        .thinking-dots span:nth-child(3) {
-            animation-delay: .4s;
-        }
-        @keyframes blink {
-            0% { opacity: .2; }
-            20% { opacity: 1; }
-            100% { opacity: .2; }
-        }
+        .chat-message { opacity: 0; transform: translateY(20px); animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+        #chat-input:focus { box-shadow: none; }
+        .gemini-gradient-text { background: -webkit-linear-gradient(45deg, #4285f4, #9b72cb, #d96570, #f2a600); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sidebar-item.active { background-color: #e8f0fe; }
+        .dark .sidebar-item.active { background-color: #2d2e30; }
+        .thinking-dots span { animation: blink 1.4s infinite both; }
+        .thinking-dots span:nth-child(2) { animation-delay: .2s; }
+        .thinking-dots span:nth-child(3) { animation-delay: .4s; }
+        @keyframes blink { 0%, 100% { opacity: .2; } 20% { opacity: 1; } }
     </style>
 </head>
 <body class="bg-white dark:bg-[#131314]">
 
-    <div class="flex h-screen text-gray-800 dark:text-gray-100">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-gray-100 dark:bg-[#1e1f20] flex flex-col p-2 space-y-2">
-            <button id="new-chat-btn" class="flex items-center w-full p-2 text-left text-sm rounded-full hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors font-medium">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                New Chat
-            </button>
-            <div class="flex-grow pt-4 overflow-y-auto">
-                <h2 class="px-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Recent</h2>
-                <div id="chat-history-list" class="space-y-1">
-                    <!-- Chat history will be populated here -->
+    <!-- STEP C.2: WRAP YOUR APP IN THE AUTHENTICATOR COMPONENT -->
+    <amplify-authenticator>
+        <template amplify-sign-out></template>
+        <div class="flex h-screen text-gray-800 dark:text-gray-100">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-gray-100 dark:bg-[#1e1f20] flex flex-col p-2 space-y-2">
+                <button id="new-chat-btn" class="flex items-center w-full p-2 text-left text-sm rounded-full hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    New Chat
+                </button>
+                <div class="flex-grow pt-4 overflow-y-auto">
+                    <h2 class="px-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Recent</h2>
+                    <div id="chat-history-list" class="space-y-1"></div>
                 </div>
-            </div>
-             <div class="border-t border-gray-200 dark:border-gray-700 p-2">
-                <a href="#" class="flex items-center w-full p-2 text-left text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                    User Profile
-                </a>
-            </div>
-        </aside>
-
-        <!-- Main Chat Area -->
-        <main class="flex-1 flex flex-col bg-white dark:bg-[#131314]">
-            <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-6">
-                <div id="chat-log" class="max-w-3xl mx-auto space-y-6">
-                <!-- Chat messages will be dynamically added here -->
+                 <div class="border-t border-gray-200 dark:border-gray-700 p-2">
+                    <a href="#" class="flex items-center w-full p-2 text-left text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        User Profile
+                    </a>
                 </div>
-            </div>
+            </aside>
 
-            <!-- Input Area -->
-            <div class="px-4 md:px-6 py-4">
-                <div class="max-w-3xl mx-auto">
-                     <form id="chat-form" class="relative">
-                        <div id="image-preview-container" class="hidden absolute bottom-full left-0 mb-2">
-                             <div class="relative">
-                                <img id="image-preview" src="" alt="Image preview" class="max-h-24 rounded-lg border border-gray-300 dark:border-gray-700">
-                                <button id="remove-image-btn" type="button" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs border-2 border-white dark:border-gray-800">&times;</button>
+            <!-- Main Chat Area -->
+            <main class="flex-1 flex flex-col bg-white dark:bg-[#131314]">
+                <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-6">
+                    <div id="chat-log" class="max-w-3xl mx-auto space-y-6"></div>
+                </div>
+                <div class="px-4 md:px-6 py-4">
+                    <div class="max-w-3xl mx-auto">
+                         <form id="chat-form" class="relative">
+                            <div id="image-preview-container" class="hidden absolute bottom-full left-0 mb-2">
+                                <div class="relative">
+                                    <img id="image-preview" src="" alt="Image preview" class="max-h-24 rounded-lg border border-gray-300 dark:border-gray-700">
+                                    <button id="remove-image-btn" type="button" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs border-2 border-white dark:border-gray-800">&times;</button>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex items-center p-2 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-[#1e1f20]">
-                            <textarea id="chat-input" class="flex-1 bg-transparent border-none focus:ring-0 resize-none p-2 text-gray-800 dark:text-gray-100" placeholder="Ask the agent anything..." rows="1"></textarea>
-                            <button id="attach-file-btn" type="button" class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-                            </button>
-                            <input type="file" id="image-upload" accept="image/*" class="hidden">
-                             <button id="send-btn" type="submit" class="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                            </button>
-                        </div>
-                    </form>
-                    <p class="text-xs text-center text-gray-500 mt-2">This is a demo AI agent. Responses may not always be accurate.</p>
+                            <div class="flex items-center p-2 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-[#1e1f20]">
+                                <textarea id="chat-input" class="flex-1 bg-transparent border-none focus:ring-0 resize-none p-2 text-gray-800 dark:text-gray-100" placeholder="Ask the agent anything..." rows="1"></textarea>
+                                <button id="attach-file-btn" type="button" class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                                </button>
+                                <input type="file" id="image-upload" accept="image/*" class="hidden">
+                                 <button id="send-btn" type="submit" class="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                </button>
+                            </div>
+                        </form>
+                        <p class="text-xs text-center text-gray-500 mt-2">This is a demo AI agent. Responses may not always be accurate.</p>
+                    </div>
                 </div>
-            </div>
-        </main>
-    </div>
+            </main>
+        </div>
+    </amplify-authenticator>
+
 
     <script type="module">
-        // --- API Configuration ---
-        // PASTE YOUR API GATEWAY INVOKE URL HERE
-        const API_BASE_URL = "https://h6l0hhe0b0.execute-api.us-east-1.amazonaws.com/Dev";
+        // STEP C.3: ADD THE MANUAL AMPLIFY CONFIGURATION
+        const amplifyConfig = {
+            Auth: {
+                // REQUIRED - Find these values in your Cognito User Pool
+                // See guide for where to find these.
+                userPoolId: 'us-east-1_Sw9J8x02M', // e.g., us-east-1_abcdef123
+                userPoolWebClientId: '7p79rul45hhk9r069uuvn9rpnn', // e.g., 1a2b3c4d5e6f7g8h9i0j
+                region: 'us-east-1' // e.g., us-east-1
+            }
+        };
+        Amplify.configure(amplifyConfig);
 
-        // --- State Management ---
+
+        // --- ALL THE PREVIOUS JAVASCRIPT LOGIC ---
+        const API_BASE_URL = "https://h6l0hhe0b0.execute-api.us-east-1.amazonaws.com/Dev"; // PASTE URL FROM PHASE 1
+
         let conversations = {};
         let activeConversationId = null;
         let currentImageData = null;
 
-        // --- DOM Elements ---
         const chatLog = document.getElementById('chat-log');
         const chatForm = document.getElementById('chat-form');
         const chatInput = document.getElementById('chat-input');
@@ -149,24 +149,18 @@
         const newChatBtn = document.getElementById('new-chat-btn');
         const chatHistoryList = document.getElementById('chat-history-list');
 
-        // --- Core Agent Logic ---
         async function runAgent(userInput, imageData) {
             const currentConversation = conversations[activeConversationId];
-            
             const userMessage = { role: 'user', text: userInput };
             addChatMessage(userMessage);
             currentConversation.history.push({ role: 'user', parts: [{ text: userInput }] });
-            
             if (currentConversation.history.length === 1 && currentConversation.title === "New Chat") {
                 currentConversation.title = userInput.substring(0, 30) + (userInput.length > 30 ? '...' : '');
                 renderSidebar();
             }
-
             addChatMessage({ role: 'agent', thinking: true });
-
             const routerPrompt = buildRouterPrompt(userInput, imageData, currentConversation.history);
             const rawDecision = await callGeminiText("gemini-2.0-flash", routerPrompt, 0.1);
-            
             let decision;
             try {
                 const jsonString = rawDecision.match(/```json\n([\s\S]*?)\n```/)[1];
@@ -175,7 +169,6 @@
                 updateLastMessage("I had trouble understanding that. Could you rephrase?");
                 return;
             }
-
             let finalResponse;
             if (decision.action === 'chat') {
                 finalResponse = decision.response;
@@ -190,18 +183,14 @@
             } else {
                 finalResponse = "I'm not sure how to handle that request.";
             }
-
             updateLastMessage(finalResponse);
             currentConversation.history.push({ role: 'model', parts: [{ text: finalResponse }] });
         }
 
-        // --- Prompt Engineering ---
         function buildRouterPrompt(userInput, imageData, history) {
             const historyString = history.slice(-6).map(turn => `${turn.role}: ${turn.parts[0].text}`).join('\n');
             const toolDescriptions = `google_search: Useful for when you need to answer questions about current events, facts, or information on the internet.`;
-            
             let prompt = `You are a router agent. Your job is to decide the best action to take based on the user's request.\nConversation History:\n${historyString}\nUser's latest request: "${userInput}"\nAvailable Actions:\n1. **chat**: If the request is a greeting, conversational, or something you can answer from general knowledge.\n2. **vision**: If an image is provided. **ONLY use this if an image is present.**\n3. **tool_use**: If the request requires up-to-date information from the internet.\n**Available Tools for 'tool_use':**\n- ${toolDescriptions}\nYou MUST respond with a single JSON object in a markdown code block.`;
-            
             if (imageData) {
                  prompt += `\n**Image has been provided.**\nResponse format for vision: \`\`\`json\n{"action": "vision"}\`\`\``;
             } else {
@@ -210,13 +199,11 @@
             return prompt;
         }
 
-        // --- Tool Definitions ---
         async function googleSearchAction(args) {
             const searchPrompt = `Provide a concise answer for the search query: "${args.query}".`;
             return await callGeminiText("gemini-2.0-flash", searchPrompt, 0.5);
         }
 
-        // --- API Call Functions ---
         async function callGeminiText(model, prompt, temperature = 0.2) {
              const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
              return await callGemini(model, payload);
@@ -228,51 +215,36 @@
         
         async function callGemini(model, payload) {
             try {
-                // The API_BASE_URL now points to our Lambda via API Gateway
                 const response = await fetch(API_BASE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: model, payload: payload, conversationId: activeConversationId }) // Pass model and payload to Lambda
+                    body: JSON.stringify({ model: model, payload: payload, conversationId: activeConversationId })
                 });
-    
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `API call failed with status: ${response.status}`);
                 }
-    
-                // The Lambda function now returns the full response from Gemini,
-                // so we need to parse it again here.
                 const data = await response.json();
-    
-                if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts) {
+                if (data.candidates && data.candidates.length > 0) {
                     return data.candidates[0].content.parts[0].text;
                 }
-    
-                const blockReason = data.promptFeedback?.blockReason;
-                if (blockReason) {
-                    throw new Error(`API call blocked due to: ${blockReason}. Please check safety settings.`);
-                }
-                throw new Error(`API call returned no candidates or unexpected format.`);
-    
+                throw new Error(`API call returned no candidates.`);
             } catch (error) {
                 console.error("Error calling backend API:", error);
                 return `Error: ${error.message}`;
             }
         }
         
-        // --- UI & State Functions ---
         function addChatMessage({ role, text, thinking = false }) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `chat-message flex w-full items-start gap-4`;
-            
             let contentHTML = '';
             const sanitizedText = text ? text.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
-
             if (role === 'user') {
                 messageDiv.classList.add('flex-row-reverse');
                 const userIcon = `<div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">U</div>`;
                 contentHTML = `<div class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-gray-800 dark:text-gray-200">${sanitizedText}</div>${userIcon}`;
-            } else { // agent
+            } else {
                 const agentIcon = `<div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0"><svg class="gemini-gradient-text" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10,0,0,0,2,12A10,10,0,0,0,12,22A10,10,0,0,0,22,12A10,10,0,0,0,12,2ZM15.1,17.5H8.9V15.8H15.1V17.5ZM15.1,14.2H8.9V12.5H15.1V14.2ZM17.8,9.2L16.5,10.5L15.2,9.2L14,10.5L12.8,9.2L11.5,10.5L10.2,9.2L9,10.5L7.8,9.2L6.5,10.5V6.5H17.8V9.2Z"></path></svg></div>`;
                 const textDiv = `<div class="p-3 rounded-lg bg-gray-100 dark:bg-[#1e1f20]">${thinking ? '<span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>' : sanitizedText.replace(/\n/g, '<br>')}</div>`;
                 contentHTML = `${agentIcon}${textDiv}`;
@@ -306,7 +278,6 @@
             activeConversationId = id;
             chatLog.innerHTML = '';
             const conversation = conversations[id];
-            
             if (conversation.history.length === 0) {
                  addChatMessage({role: 'agent', text: 'Hello! How can I help you today?'});
             } else {
@@ -334,14 +305,11 @@
             });
         }
         
-        // --- Event Listeners ---
         chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const userInput = chatInput.value.trim();
             if (!userInput && !currentImageData) return;
-            
             runAgent(userInput || 'Describe this image', currentImageData);
-            
             chatInput.value = '';
             chatInput.style.height = 'auto';
             currentImageData = null;
@@ -365,7 +333,6 @@
         imageUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
             reader.onload = (e) => {
                 const dataUrl = e.target.result;
@@ -379,12 +346,11 @@
         removeImageBtn.addEventListener('click', () => {
              currentImageData = null;
              imagePreviewContainer.classList.add('hidden');
-             imageUpload.value = ''; // Reset file input
+             imageUpload.value = '';
         });
 
         newChatBtn.addEventListener('click', createNewChat);
         
-        // --- Initial Load ---
         createNewChat();
 
     </script>
