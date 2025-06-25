@@ -131,7 +131,8 @@
                 contents: [{
                     parts: [
                         { text: prompt },
-                        { inline_data: { mime_type: mimeType, data: base64Data } }
+                        // FIX: The field name is inlineData, not inline_data.
+                        { inlineData: { mimeType: mimeType, data: base64Data } }
                     ]
                 }]
             };
@@ -169,7 +170,7 @@
             thoughtLog.parentElement.scrollTop = thoughtLog.parentElement.scrollHeight;
         }
 
-        // --- Shared Tool Actions (to avoid circular dependencies) ---
+        // --- Shared Tool Actions ---
         const googleSearchAction = async (args) => {
             const searchPrompt = `Provide a list of 3-5 relevant URLs for the search query: "${args.query}". Return only a JSON array of strings in a markdown block.`;
             const raw = await callGeminiText("gemini-2.0-flash", searchPrompt, 0.0);
