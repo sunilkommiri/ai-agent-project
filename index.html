@@ -129,8 +129,8 @@
 
     <script type="module">
         // --- API Configuration ---
-        const API_KEY = "AIzaSyDS4rIhOSz5-tbPPzUdI18c5JnEOF3M9sA"; 
-        const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+        // PASTE YOUR API GATEWAY INVOKE URL HERE
+        const API_BASE_URL = "https://h6l0hhe0b0.execute-api.us-east-1.amazonaws.com/Dev";
 
         // --- State Management ---
         let conversations = {};
@@ -157,7 +157,6 @@
             addChatMessage(userMessage);
             currentConversation.history.push({ role: 'user', parts: [{ text: userInput }] });
             
-            // Auto-generate title for new chats
             if (currentConversation.history.length === 1 && currentConversation.title === "New Chat") {
                 currentConversation.title = userInput.substring(0, 30) + (userInput.length > 30 ? '...' : '');
                 renderSidebar();
@@ -226,19 +225,37 @@
             const payload = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Data } }] }] };
             return await callGemini(model, payload);
         }
+        
         async function callGemini(model, payload) {
             try {
-                 if (!API_KEY || API_KEY === "YOUR_GEMINI_API_KEY_HERE") throw new Error("API Key is missing.");
-                 const response = await fetch(`${API_BASE_URL}${model}:generateContent?key=${API_KEY}`, {
+                // The API_BASE_URL now points to our Lambda via API Gateway
+                const response = await fetch(API_BASE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ model: model, payload: payload }) // Pass model and payload to Lambda
                 });
-                if (!response.ok) throw new Error(`API call failed: ${response.status}`);
+    
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `API call failed with status: ${response.status}`);
+                }
+    
+                // The Lambda function now returns the full response from Gemini,
+                // so we need to parse it again here.
                 const data = await response.json();
-                return data.candidates[0].content.parts[0].text;
+    
+                if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts) {
+                    return data.candidates[0].content.parts[0].text;
+                }
+    
+                const blockReason = data.promptFeedback?.blockReason;
+                if (blockReason) {
+                    throw new Error(`API call blocked due to: ${blockReason}. Please check safety settings.`);
+                }
+                throw new Error(`API call returned no candidates or unexpected format.`);
+    
             } catch (error) {
-                console.error("Gemini API Error:", error);
+                console.error("Error calling backend API:", error);
                 return `Error: ${error.message}`;
             }
         }
@@ -332,7 +349,6 @@
         });
         
         chatInput.addEventListener('keydown', (e) => {
-            // If enter is pressed without shift, submit the form
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 chatForm.requestSubmit();
