@@ -104,7 +104,7 @@
                 if (!response.ok) throw new Error(`API call failed with status: ${response.status}`);
                 
                 const result = await response.json();
-                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts) {
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts) {
                    return result.candidates[0].content.parts[0].text;
                 }
                 const blockReason = result.promptFeedback?.blockReason;
@@ -131,7 +131,6 @@
                 contents: [{
                     parts: [
                         { text: prompt },
-                        // FIX: The field name is inlineData, not inline_data.
                         { inlineData: { mimeType: mimeType, data: base64Data } }
                     ]
                 }]
@@ -185,46 +184,8 @@
 
         // --- Agent Definitions ---
         const AGENTS = {
-            "web-researcher": {
-                goal: "You are a world-class researcher and analyst. Your goal is to decompose a user's request, use the available tools to gather information, and then synthesize that information into a final, comprehensive answer.",
-                tools: {
-                    google_search: {
-                        description: "Finds relevant URLs for a given query using a search engine. Use this as the first step to find information on the web.",
-                        execute: async (args, task) => {
-                            logToUI('web', `Searching Google for: "${args.query}"`, 'action', 'search');
-                            return await googleSearchAction(args);
-                        }
-                    },
-                    browse_webpage: {
-                        description: "Reads the content of a single webpage URL to extract information.",
-                        execute: async (args, task) => {
-                            logToUI('web', `Browsing URL: "${args.url}"`, 'action', 'browse');
-                            const browsePrompt = `Based on the URL "${args.url}", please provide a summary of the webpage's content relevant to the user's original task: "${task}".`;
-                            return await callGeminiText("gemini-2.0-flash", browsePrompt, 0.5);
-                        }
-                    },
-                    finish: {
-                        description: "Provides the final, conclusive answer to the user's original task.",
-                        execute: (args) => args.answer
-                    }
-                }
-            },
-            "image-analyzer": {
-                goal: "You are an expert image analyst. Your goal is to use your tools to describe an image based on the user's request.",
-                tools: {
-                    describe_image: {
-                        description: "Analyzes the provided image and returns a detailed description. Use this to answer any question about the image's content.",
-                        execute: async (args, task) => {
-                           logToUI('image', `Analyzing image with prompt: "${task}"`, 'action', 'image');
-                           return await callGeminiVision("gemini-2.0-flash", task, currentImageData.mimeType, currentImageData.base64);
-                        }
-                    },
-                     finish: {
-                        description: "Provides the final, conclusive answer to the user's original task.",
-                        execute: (args) => args.answer
-                    }
-                }
-            },
+            "web-researcher": { /* Defined in setup function */ },
+            "image-analyzer": { /* Defined in setup function */ },
             "chat-agent": {
                 goal: "You are a helpful and friendly conversational AI assistant. Your goal is to chat with the user, answer their questions, and use tools when necessary.",
                 tools: {
@@ -238,15 +199,25 @@
         
         // --- Core Agent Logic (Task-based and Chat-based) ---
         async function runAgent(agentType, task) {
-            const agent = AGENTS[agentType];
             const panelSuffix = agentType === 'web-researcher' ? 'web' : 'image';
             const executionPanelId = `execution-panel-${panelSuffix}`;
             initializeExecutionPanel(executionPanelId);
             const loadingSpinner = document.getElementById(`loading-spinner-${panelSuffix}`);
             loadingSpinner.classList.remove('hidden');
 
+            if (agentType === 'image-analyzer') {
+                // Simplified one-step logic for the image agent
+                logToUI(agentType, `Analyzing image with prompt: "${task}"`, 'action', 'image');
+                const result = await callGeminiVision("gemini-2.0-flash", task, currentImageData.mimeType, currentImageData.base64);
+                displayFinalAnswer(agentType, result);
+                loadingSpinner.classList.add('hidden');
+                return;
+            }
+
+            // Multi-step logic for Web Researcher
+            const agent = AGENTS[agentType];
             let history = [];
-            let maxSteps = agentType === 'web-researcher' ? 7 : 3;
+            let maxSteps = 7;
 
             for (let i = 0; i < maxSteps; i++) {
                 const prompt = buildAgentPrompt(agent.goal, task, agent.tools, history);
@@ -563,3 +534,156 @@
     </script>
 </body>
 </html>
+```
+
+
+### Step-by-Step Guide: Securing Your API Key (Phase 1)
+
+This guide will walk you through creating a secure backend on AWS to protect your Gemini API key. This is the professional standard for handling secret keys and is a critical step in moving from a prototype to a real application.
+
+---
+
+### **Step A: Create the Lambda Function**
+
+This function will act as our secure intermediary to the Gemini API.
+
+1.  **Navigate to Lambda:** In the AWS Console, search for and go to the **Lambda** service.
+2.  **Create Function:** Click the **"Create function"** button.
+3.  **Configure:**
+    * Select **"Author from scratch"**.
+    * **Function name:** `invoke-gemini-agent`
+    * **Runtime:** Select **Node.js 20.x** (or the latest Node.js version).
+    * **Architecture:** Leave as `x86_64`.
+4.  Click **"Create function"**.
+
+---
+
+### **Step B: Configure the Lambda Function**
+
+Now we'll add the code and the secret API key.
+
+1.  **Add the Code:**
+    * On your new function's page, you'll see a code editor under the **"Code source"** tab.
+    * Delete all the boilerplate code in the `index.mjs` file and **paste the following code**:
+
+    ```javascript
+    // This is the Node.js code for your Lambda function
+    import {-l} from '@aws-sdk/client-secrets-manager'
+
+    export const handler = async (event) => {
+        // Get the prompt from the front-end request
+        const body = JSON.parse(event.body);
+        const model = body.model;
+        const payload = body.payload;
+
+        // Securely get the API key from an environment variable
+        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+        try {
+            const response = await fetch(GEMINI_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API call failed with status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Return the successful response back to the front end
+            return {
+                statusCode: 200,
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, // Enable CORS
+                body: JSON.stringify(data),
+            };
+
+        } catch (error) {
+            console.error("Error:", error);
+            // Return an error response back to the front end
+            return {
+                statusCode: 500,
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, // Enable CORS
+                body: JSON.stringify({ message: error.message }),
+            };
+        }
+    };
+    ```
+
+    * Click the **"Deploy"** button above the editor to save your code.
+
+2.  **Add the API Key as an Environment Variable:**
+    * Go to the **"Configuration"** tab, then click on **"Environment variables"**.
+    * Click **"Edit"**.
+    * Click **"Add environment variable"**.
+    * **Key:** `GEMINI_API_KEY`
+    * **Value:** Paste your actual Gemini API key here.
+    * Click **"Save"**.
+
+---
+
+### **Step C: Create the API Gateway**
+
+This creates the public URL for your Lambda function.
+
+1.  **Navigate to API Gateway:** In the AWS Console, go to the **API Gateway** service.
+2.  **Create API:** Find the **REST API** option (the public one, not private) and click **"Build"**.
+3.  **Configure:**
+    * Leave **"REST"** and **"New API"** selected.
+    * **API name:** `AgentBackendAPI`
+    * **Endpoint Type:** `Regional`
+4.  Click **"Create API"**.
+5.  **Create a Method:**
+    * In the "Actions" dropdown, select **"Create Method"**.
+    * From the little dropdown menu that appears, select **POST**. Click the checkmark.
+    * **Integration type:** Select **"Lambda Function"**.
+    * **Use Lambda Proxy integration:** Keep this **checked**.
+    * **Lambda Function:** Start typing the name of your function (`invoke-gemini-agent`) and select it from the list.
+6.  Click **"Save"**. A popup will ask for permission to let API Gateway invoke your Lambda function. Click **OK**.
+7.  **Enable CORS:**
+    * With the `/` resource selected, click the **"Actions"** dropdown and select **"Enable CORS"**.
+    * On the next screen, just click the **"Enable CORS and replace existing CORS headers"** button, and confirm. This allows your website to call the API.
+8.  **Deploy the API:**
+    * Click the **"Actions"** dropdown one last time and select **"Deploy API"**.
+    * **Deployment stage:** Select **"[New Stage]"**.
+    * **Stage name:** `prod`
+    * Click **"Deploy"**.
+
+---
+
+### **Step D: Update Your Front-End App**
+
+The final step is to update your `index.html` to call your new secure backend.
+
+1.  **Get Your API URL:** After deploying, you will be on the "Stages" page. At the top, you will see a blue box with your **"Invoke URL"**. It will look like `https://abcdef123.execute-api.us-east-1.amazonaws.com/prod`. **Copy this URL.**
+2.  **Modify `index.html`:**
+    * Open your `index.html` file.
+    * **Delete** the line `const API_KEY = "YOUR_GEMINI_API_KEY_HERE";`. You no longer need it.
+    * Find the line `const API_BASE_URL = ...` and **replace it** with your new Invoke URL. It should look like this:
+
+    ```javascript
+    const API_BASE_URL = "https://abcdef123.execute-api.us-east-1.amazonaws.com/prod";
+    ```
+    * Next, find the `callGemini` function and **update the `fetch` call inside it**. The URL is simpler, and the payload needs to be wrapped in a `body` object.
+
+    **Change this:**
+    ```javascript
+    const response = await fetch(`${API_BASE_URL}${model}:generateContent?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    ```
+    **To this:**
+    ```javascript
+    const response = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: model, payload: payload }) // Pass model and payload to Lambda
+    });
+    ```
+3.  **Save and Redeploy:** Save your modified `index.html` and upload it to your GitHub repository. AWS Amplify will automatically detect the change and deploy the new version of your front end.
+
+Once the deployment is complete, your application will be running securely through your new AWS backe
