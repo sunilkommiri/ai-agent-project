@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Mode AI Agent Platform</title>
+    <title>AI Agent Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,603 +11,331 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
         }
-        .dark body {
-            background-color: #111827;
-        }
-        /* Simple scrollbar styling */
+        /* Custom scrollbar for a more polished look */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-track { background: #374151; }
-        ::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #6b7280; }
-        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-        .dark ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
-        
-        .log-entry, .chat-message {
-            transition: all 0.3s ease-in-out;
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+
+        .chat-message {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(20px);
+            animation: fadeIn 0.5s ease-out forwards;
         }
-        .log-entry.visible, .chat-message.visible {
-            opacity: 1;
-            transform: translateY(0);
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .nav-link {
-            transition: all 0.2s ease-in-out;
+        #chat-input:focus {
+            box-shadow: none;
         }
-        .nav-link.active {
-            color: #2563eb; /* blue-600 */
-            border-bottom-color: #2563eb;
+        /* Thinking dots animation */
+        .thinking-dots span {
+            animation-name: blink;
+            animation-duration: 1.4s;
+            animation-iteration-count: infinite;
+            animation-fill-mode: both;
         }
-        .dark .nav-link.active {
-            color: #3b82f6; /* blue-500 */
-            border-bottom-color: #3b82f6;
+        .thinking-dots span:nth-child(2) {
+            animation-delay: .2s;
         }
-
-        #image-preview {
-            background-size: cover;
-            background-position: center;
+        .thinking-dots span:nth-child(3) {
+            animation-delay: .4s;
         }
-        .chat-bubble { max-width: 80%; word-wrap: break-word; }
-        .chat-bubble-user { background-color: #3b82f6; color: white; }
-        .chat-bubble-agent { background-color: #e5e7eb; color: #1f2937; }
-        .dark .chat-bubble-agent { background-color: #374151; color: #f3f4f6; }
-
+        @keyframes blink {
+            0% { opacity: .2; }
+            20% { opacity: 1; }
+            100% { opacity: .2; }
+        }
     </style>
 </head>
-<body class="dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+<body class="bg-white dark:bg-[#343541]">
 
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">Multi-Mode AI Agent Platform</h1>
-            <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Select an agent to begin a task.</p>
-        </header>
+    <div class="flex h-screen text-gray-800 dark:text-gray-100">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-[#202123] flex flex-col p-2">
+            <button id="new-chat-btn" class="flex items-center w-full p-2 text-left text-sm rounded-lg hover:bg-[#343541] transition-colors text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                New Chat
+            </button>
+            <div class="flex-grow mt-4 space-y-2 overflow-y-auto">
+                <!-- Chat history will be populated here -->
+                <div id="chat-history-list" class="space-y-1">
+                    <a href="#" class="block p-2 text-sm rounded-lg bg-[#343541] truncate text-white">Initial Conversation</a>
+                </div>
+            </div>
+             <div class="border-t border-gray-700 p-2">
+                <a href="#" class="flex items-center w-full p-2 text-left text-sm rounded-lg hover:bg-[#343541] transition-colors text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    User Profile
+                </a>
+            </div>
+        </aside>
 
-        <!-- Navigation Menu -->
-        <nav class="flex justify-center border-b border-gray-300 dark:border-gray-700 mb-8">
-            <a href="#" id="nav-web-researcher" class="nav-link text-lg font-medium px-4 py-2 border-b-2 border-transparent">Web Researcher</a>
-            <a href="#" id="nav-image-analyzer" class="nav-link text-lg font-medium px-4 py-2 border-b-2 border-transparent">Image Analyzer</a>
-            <a href="#" id="nav-chat-agent" class="nav-link text-lg font-medium px-4 py-2 border-b-2 border-transparent">Conversational Agent</a>
-        </nav>
+        <!-- Main Chat Area -->
+        <main class="flex-1 flex flex-col">
+            <div id="chat-log" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+                <!-- Chat messages will be dynamically added here -->
+            </div>
 
-        <main id="agent-container">
-            <!-- Web Researcher View -->
-            <div id="web-researcher-view"></div>
-            <!-- Image Analyzer View -->
-            <div id="image-analyzer-view"></div>
-            <!-- Conversational Agent View -->
-            <div id="chat-agent-view"></div>
+            <!-- Input Area -->
+            <div class="px-4 md:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="max-w-3xl mx-auto">
+                     <form id="chat-form" class="relative">
+                        <div id="image-preview-container" class="hidden absolute bottom-full left-0 mb-2">
+                             <div class="relative">
+                                <img id="image-preview" src="" alt="Image preview" class="max-h-24 rounded-lg border border-gray-500">
+                                <button id="remove-image-btn" type="button" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs border-2 border-[#343541]">&times;</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#40414f]">
+                            <button id="attach-file-btn" type="button" class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                            </button>
+                            <input type="file" id="image-upload" accept="image/*" class="hidden">
+                            <textarea id="chat-input" class="flex-1 bg-transparent border-none focus:ring-0 resize-none p-2" placeholder="Ask the agent anything..." rows="1"></textarea>
+                            <button id="send-btn" type="submit" class="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                    </form>
+                    <p class="text-xs text-center text-gray-500 mt-2">This is a demo AI agent. Responses may not always be accurate.</p>
+                </div>
+            </div>
         </main>
     </div>
 
     <script type="module">
-        // --- Gemini API Configuration ---
+        // --- API Configuration ---
         const API_KEY = "AIzaSyDS4rIhOSz5-tbPPzUdI18c5JnEOF3M9sA"; 
         const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 
-        let currentImageData = null; 
+        // --- State Management ---
         let chatHistory = [];
+        let currentImageData = null;
 
-        // --- Gemini API Call Functions (defined early) ---
+        // --- DOM Elements ---
+        const chatLog = document.getElementById('chat-log');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const attachFileBtn = document.getElementById('attach-file-btn');
+        const imageUpload = document.getElementById('image-upload');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+        const newChatBtn = document.getElementById('new-chat-btn');
+
+        // --- Core Agent Logic ---
+        async function runAgent(userInput, imageData) {
+            const userMessage = { role: 'user', text: userInput };
+            addChatMessage(userMessage);
+
+            let conversationHistory = [...chatHistory];
+            conversationHistory.push({ role: 'user', parts: [{ text: userInput }] });
+
+            addChatMessage({ role: 'agent', thinking: true });
+
+            // --- Router Logic ---
+            const routerPrompt = buildRouterPrompt(userInput, imageData, conversationHistory);
+            const rawDecision = await callGeminiText("gemini-2.0-flash", routerPrompt, 0.1);
+            
+            let decision;
+            try {
+                const jsonString = rawDecision.match(/```json\n([\s\S]*?)\n```/)[1];
+                decision = JSON.parse(jsonString);
+            } catch (e) {
+                updateLastMessage("I had trouble understanding that. Could you rephrase?");
+                return;
+            }
+
+            // --- Execute Action ---
+            let finalResponse;
+            if (decision.action === 'chat') {
+                finalResponse = decision.response;
+            } else if (decision.action === 'vision') {
+                updateLastMessage('Analyzing image...', true);
+                finalResponse = await callGeminiVision("gemini-2.0-flash", userInput, imageData.mimeType, imageData.base64);
+            } else if (decision.action === 'tool_use') {
+                updateLastMessage(`Searching for: "${decision.args.query}"...`, true);
+                const observation = await googleSearchAction(decision.args);
+                
+                const finalPrompt = `Based on this search result: "${observation}", formulate a natural language response to the user's original request: "${userInput}".`;
+                finalResponse = await callGeminiText("gemini-2.0-flash", finalPrompt, 0.5);
+            } else {
+                finalResponse = "I'm not sure how to handle that request.";
+            }
+
+            updateLastMessage(finalResponse);
+
+            chatHistory.push({role: 'user', parts: [{text: userInput}]});
+            chatHistory.push({role: 'model', parts: [{text: finalResponse}]});
+        }
+
+        // --- Prompt Engineering ---
+        function buildRouterPrompt(userInput, imageData, history) {
+            const historyString = history.slice(-4).map(turn => `${turn.role}: ${turn.parts[0].text}`).join('\n');
+            const toolDescriptions = `google_search: Useful for when you need to answer questions about current events, facts, or information on the internet.`;
+            
+            let prompt = `You are a router agent. Your job is to decide the best action to take based on the user's request.
+            Conversation History:
+            ${historyString}
+            
+            User's latest request: "${userInput}"
+            
+            Available Actions:
+            1.  **chat**: If the request is a greeting, conversational, or something you can answer from general knowledge.
+            2.  **vision**: If an image is provided. **ONLY use this if an image is present.**
+            3.  **tool_use**: If the request requires up-to-date information from the internet.
+            
+            **Available Tools for 'tool_use':**
+            - ${toolDescriptions}
+
+            You MUST respond with a single JSON object in a markdown code block.
+            `;
+            
+            if (imageData) {
+                 prompt += `**Image has been provided.**\nResponse format for vision: \`\`\`json\n{"action": "vision"}\`\`\``;
+            } else {
+                 prompt += `Response format for chat: \`\`\`json\n{"action": "chat", "response": "Your natural language response."}\`\`\`
+                 Response format for tool use: \`\`\`json\n{"action": "tool_use", "tool": "google_search", "args": {"query": "The user's search query"}}\`\`\``;
+            }
+
+            return prompt;
+        }
+
+        // --- Tool Definitions ---
+        async function googleSearchAction(args) {
+            const searchPrompt = `Provide a concise answer for the search query: "${args.query}".`;
+            return await callGeminiText("gemini-2.0-flash", searchPrompt, 0.5);
+        }
+
+        // --- API Call Functions ---
+        async function callGeminiText(model, prompt, temperature = 0.2) {
+             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+             return await callGemini(model, payload);
+        }
+
+        async function callGeminiVision(model, prompt, mimeType, base64Data) {
+            const payload = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Data } }] }] };
+            return await callGemini(model, payload);
+        }
+        
         async function callGemini(model, payload) {
             try {
-                if (!API_KEY || API_KEY === "YOUR_GEMINI_API_KEY_HERE") throw new Error("API Key is missing. Please add it to the index.html file.");
-                
-                const response = await fetch(`${API_BASE_URL}${model}:generateContent?key=${API_KEY}`, {
+                 if (!API_KEY || API_KEY === "YOUR_GEMINI_API_KEY_HERE") throw new Error("API Key is missing.");
+                 const response = await fetch(`${API_BASE_URL}${model}:generateContent?key=${API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
-                if (!response.ok) throw new Error(`API call failed with status: ${response.status}`);
-                
-                const result = await response.json();
-                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts) {
-                   return result.candidates[0].content.parts[0].text;
-                }
-                const blockReason = result.promptFeedback?.blockReason;
-                if (blockReason) {
-                    throw new Error(`API call blocked due to: ${blockReason}. Please check safety settings.`);
-                }
-                throw new Error(`API call returned no candidates or unexpected format.`);
+                if (!response.ok) throw new Error(`API call failed: ${response.status}`);
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
             } catch (error) {
-                console.error("Error calling Gemini API:", error);
+                console.error("Gemini API Error:", error);
                 return `Error: ${error.message}`;
             }
         }
-
-        function callGeminiText(model, prompt, temperature = 0.2) {
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { temperature, maxOutputTokens: 2048 }
-            };
-            return callGemini(model, payload);
-        }
-
-        function callGeminiVision(model, prompt, mimeType, base64Data) {
-            const payload = {
-                contents: [{
-                    parts: [
-                        { text: prompt },
-                        { inlineData: { mimeType: mimeType, data: base64Data } }
-                    ]
-                }]
-            };
-            return callGemini(model, payload);
-        }
         
-        // --- UI Helper Functions (defined before use) ---
-        function logToUI(agentType, message, type, iconType) {
-            const panelSuffix = agentType === 'web-researcher' ? 'web' : 'image';
-            const thoughtLog = document.getElementById(`thought-log-${panelSuffix}`);
-            if (!thoughtLog) return;
-            if (thoughtLog.children.length === 1 && thoughtLog.children[0].innerText.includes("thought process")) {
-                 thoughtLog.innerHTML = '';
-            }
-
-            const entry = document.createElement('div');
-            let icon = '';
-            let bgColor = 'bg-gray-100 dark:bg-gray-800/60';
+        // --- UI Functions ---
+        function addChatMessage({ role, text, thinking = false }) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message flex w-full items-start gap-3`;
             
-            iconType = iconType || type;
-            switch(iconType) {
-                case 'thought': icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-purple-500"><path d="M12 2a10 10 0 0 0-10 10c0 4.42 2.87 8.17 6.84 9.5.6.11.82-.26.82-.57 0-.28-.01-1.02-.01-2-2.78.6-3.37-1.34-3.37-1.34-.55-1.4-1.34-1.77-1.34-1.77-1.08-.74.08-.73.08-.73 1.2.08 1.83 1.23 1.83 1.23 1.07 1.83 2.8 1.3 3.48 1 .1-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.23-3.22-.12-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23.95-.26 1.98-.4 3-.4s2.05.13 3 .4c2.28-1.55 3.28-1.23 3.28-1.23.66 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.63-5.48 5.93.43.37.82 1.1.82 2.22 0 1.6-.01 2.89-.01 3.28 0 .31.22.69.83.57A10 10 0 0 0 12 2z"/></svg>`; break;
-                case 'search': icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-blue-500"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`; break;
-                case 'browse': icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-teal-500"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`; break;
-                case 'image': icon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-pink-500"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>`; break;
-                case 'observation': icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-gray-500"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`; break;
-                case 'error': icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-red-500"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`; bgColor = 'bg-red-50 dark:bg-red-900/20'; break;
-                case 'system': icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-gray-400"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>`; break;
-            }
-
-            entry.className = `log-entry p-3 rounded-lg flex items-start space-x-3 ${bgColor}`;
-            entry.innerHTML = `${icon}<div class="prose prose-sm dark:prose-invert max-w-none pt-0.5">${message}</div>`;
-            thoughtLog.appendChild(entry);
-            setTimeout(() => entry.classList.add('visible'), 10);
-            thoughtLog.parentElement.scrollTop = thoughtLog.parentElement.scrollHeight;
-        }
-
-        // --- Shared Tool Actions ---
-        const googleSearchAction = async (args) => {
-            const searchPrompt = `Provide a list of 3-5 relevant URLs for the search query: "${args.query}". Return only a JSON array of strings in a markdown block.`;
-            const raw = await callGeminiText("gemini-2.0-flash", searchPrompt, 0.0);
-             try {
-                const jsonString = raw.match(/```json\n([\s\S]*?)\n```/)[1];
-                const urls = JSON.parse(jsonString);
-                return `Found the following URLs: ${urls.join(', ')}`;
-            } catch (e) {
-                return `Could not parse search results. Raw response: ${raw}`;
-            }
-        };
-
-        // --- Agent Definitions ---
-        const AGENTS = {
-            "web-researcher": { /* Defined in setup function */ },
-            "image-analyzer": { /* Defined in setup function */ },
-            "chat-agent": {
-                goal: "You are a helpful and friendly conversational AI assistant. Your goal is to chat with the user, answer their questions, and use tools when necessary.",
-                tools: {
-                    google_search: {
-                        description: "Finds relevant URLs for a given query using a search engine. Use this when you need external information to answer a question.",
-                        execute: googleSearchAction
-                    }
-                }
-            }
-        };
-        
-        // --- Core Agent Logic (Task-based and Chat-based) ---
-        async function runAgent(agentType, task) {
-            const panelSuffix = agentType === 'web-researcher' ? 'web' : 'image';
-            const executionPanelId = `execution-panel-${panelSuffix}`;
-            initializeExecutionPanel(executionPanelId);
-            const loadingSpinner = document.getElementById(`loading-spinner-${panelSuffix}`);
-            loadingSpinner.classList.remove('hidden');
-
-            if (agentType === 'image-analyzer') {
-                // Simplified one-step logic for the image agent
-                logToUI(agentType, `Analyzing image with prompt: "${task}"`, 'action', 'image');
-                const result = await callGeminiVision("gemini-2.0-flash", task, currentImageData.mimeType, currentImageData.base64);
-                displayFinalAnswer(agentType, result);
-                loadingSpinner.classList.add('hidden');
-                return;
-            }
-
-            // Multi-step logic for Web Researcher
-            const agent = AGENTS[agentType];
-            let history = [];
-            let maxSteps = 7;
-
-            for (let i = 0; i < maxSteps; i++) {
-                const prompt = buildAgentPrompt(agent.goal, task, agent.tools, history);
-                logToUI(agentType, `<strong>Step ${i + 1}: Thinking...</strong>`, 'system');
-                
-                const rawResponse = await callGeminiText("gemini-2.0-flash", prompt, 0.2);
-                let thoughtAndAction;
-                try {
-                    const jsonString = rawResponse.match(/```json\n([\s\S]*?)\n```/)[1];
-                    thoughtAndAction = JSON.parse(jsonString);
-                } catch (e) {
-                    logToUI(agentType, `Error parsing LLM response: ${rawResponse}`, 'error');
-                    break;
-                }
-                
-                logToUI(agentType, `<em>"${thoughtAndAction.thought}"</em>`, 'thought');
-                
-                const toolName = thoughtAndAction.action.tool;
-                const toolArgs = thoughtAndAction.action.args;
-
-                if (toolName === 'finish') {
-                    displayFinalAnswer(agentType, toolArgs.answer);
-                    break;
-                }
-
-                if (agent.tools[toolName]) {
-                    const observation = await agent.tools[toolName].execute(toolArgs, task);
-                    logToUI(agentType, `Result: ${observation}`, 'observation');
-                    history.push({ role: 'assistant', thought: thoughtAndAction.thought, action: thoughtAndAction.action, observation });
-                } else {
-                    logToUI(agentType, `Error: Unknown tool "${toolName}"`, 'error');
-                    break;
-                }
-            }
-            loadingSpinner.classList.add('hidden');
-        }
-        
-        function buildAgentPrompt(goal, task, tools, history) {
-            const toolDescriptions = Object.entries(tools).map(([key, value]) => `  - ${key}: ${value.description}`).join('\n');
-            const historyString = history.map(turn => `Thought: ${turn.thought}\nAction: ${JSON.stringify(turn.action)}\nObservation: ${turn.observation}`).join('\n\n');
-
-            return `You are an autonomous AI agent.
-            **Core Objective:** ${goal}
-            **Available Tools:**\n${toolDescriptions}
-            **Task:** Fulfill this request: "${task}"
-            **History:**\n${historyString || 'No actions taken yet.'}
-            **Your Response:** You MUST respond with a single JSON object in a markdown code block with "thought" and "action" keys.`;
-        }
-
-        async function runChatAgent(userInput) {
-            addChatMessage('user', userInput);
-            chatHistory.push({role: 'user', parts: [{text: userInput}]});
-            
-            const agent = AGENTS['chat-agent'];
-            const prompt = buildChatRouterPrompt(agent.goal, agent.tools, chatHistory);
-            
-            addChatMessage('system', 'Agent is thinking...');
-
-            const rawResponse = await callGeminiText("gemini-2.0-flash", prompt, 0.2);
-            
-            const thinkingMessage = document.getElementById('chat-log').lastChild;
-            if (thinkingMessage && thinkingMessage.textContent.includes('Agent is thinking')) {
-                thinkingMessage.remove();
-            }
-
-            let decision;
-            try {
-                const jsonString = rawResponse.match(/```json\n([\s\S]*?)\n```/)[1];
-                decision = JSON.parse(jsonString);
-            } catch (e) {
-                addChatMessage('agent', `I seem to be having trouble thinking straight right now. My apologies. (Error: ${rawResponse})`);
-                chatHistory.pop(); // remove user message if agent fails
-                return;
-            }
-
-            if (decision.action === 'chat') {
-                addChatMessage('agent', decision.response);
-                chatHistory.push({role: 'model', parts: [{text: decision.response}]});
-            } else if (decision.action === 'tool_use') {
-                addChatMessage('system', `Using tool: ${decision.tool}...`);
-                
-                const toolName = decision.tool;
-                const toolArgs = decision.args;
-                
-                if(agent.tools[toolName]) {
-                    const observation = await agent.tools[toolName].execute(toolArgs, userInput);
-                    addChatMessage('system', `Tool Result: ${observation.substring(0, 150)}...`);
-
-                    const finalPrompt = `Based on this tool result: "${observation}", formulate a natural language response to the user's original request: "${userInput}".`;
-                    const finalResponse = await callGeminiText("gemini-2.0-flash", finalPrompt, 0.5);
-
-                    addChatMessage('agent', finalResponse);
-                    chatHistory.push({role: 'model', parts: [{text: finalResponse}]});
-                } else {
-                     addChatMessage('agent', `I tried to use a tool called '${toolName}', but I don't seem to have it.`);
-                }
-            }
-        }
-
-        function buildChatRouterPrompt(goal, tools, history) {
-            const toolDescriptions = Object.entries(tools).filter(([k]) => k !== 'finish' && k !== 'browse_webpage').map(([key, value]) => `  - ${key}: ${value.description}`).join('\n');
-            const historyString = history.map(turn => `${turn.role}: ${turn.parts[0].text}`).join('\n');
-
-            return `You are a helpful conversational agent. Your goal is to decide how to respond to the user's latest message.
-            Conversation History:
-            ${historyString}
-
-            Based on the history, you have two choices for the user's last message:
-            1.  **Chat**: If you can answer directly or it's a conversational turn, respond naturally.
-            2.  **Use a Tool**: If you need external information, use a tool.
-
-            **Available Tools:**
-            ${toolDescriptions}
-
-            **Your Response MUST be a single JSON object in a markdown code block.**
-            - To chat, respond with: \`\`\`json\n{"action": "chat", "response": "Your natural language response here."}\`\`\`
-            - To use a tool, respond with: \`\`\`json\n{"action": "tool_use", "tool": "tool_name", "args": {"arg_name": "value"}}\`\`\`
-            `;
-        }
-
-        function initializeExecutionPanel(panelId) {
-            const panel = document.getElementById(panelId);
-            const panelSuffix = panelId.split('-')[2];
-            panel.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Execution Log</h2>
-                <div id="final-answer-container-${panelSuffix}" class="mb-4 p-4 bg-green-100 dark:bg-green-900/40 border border-green-300 dark:border-green-700 rounded-lg hidden">
-                     <h3 class="font-semibold text-lg text-green-800 dark:text-green-200 mb-2">Final Answer:</h3>
-                     <p id="final-answer-${panelSuffix}" class="text-green-700 dark:text-green-300 whitespace-pre-wrap"></p>
-                </div>
-                <div class="h-96 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 overflow-y-auto border border-gray-200 dark:border-gray-700 relative">
-                    <div id="loading-spinner-${panelSuffix}" class="absolute inset-0 bg-white/80 dark:bg-black/80 flex justify-center items-center rounded-lg hidden z-10">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                        <p class="ml-4 text-lg font-semibold">Agent is working...</p>
-                    </div>
-                    <div id="thought-log-${panelSuffix}" class="space-y-4">
-                        <p class="text-gray-500 dark:text-gray-400 text-center italic">Agent's thought process will appear here...</p>
-                    </div>
-                </div>`;
-        }
-
-        function displayFinalAnswer(agentType, answer) {
-            const panelSuffix = agentType === 'web-researcher' ? 'web' : 'image';
-            document.getElementById(`final-answer-container-${panelSuffix}`).classList.remove('hidden');
-            document.getElementById(`final-answer-${panelSuffix}`).textContent = answer;
-        }
-
-        function addChatMessage(role, message) {
-            const chatLog = document.getElementById('chat-log');
-            if (!chatLog) return;
-            const entry = document.createElement('div');
-            entry.className = 'chat-message flex w-full';
-
-            let content;
+            let contentHTML = '';
+            const sanitizedText = text ? text.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
 
             if (role === 'user') {
-                entry.classList.add('justify-end');
-                content = `<div class="p-3 rounded-lg chat-bubble chat-bubble-user">${message.replace(/\n/g, '<br>')}</div>`;
-            } else if (role === 'agent') {
-                entry.classList.add('justify-start');
-                content = `<div class="p-3 rounded-lg chat-bubble chat-bubble-agent">${message.replace(/\n/g, '<br>')}</div>`;
-            } else { // system
-                content = `<div class="w-full text-center text-xs italic text-gray-500 dark:text-gray-400 py-2">${message}</div>`;
+                messageDiv.classList.add('flex-row-reverse');
+                contentHTML = `<div class="p-3 rounded-lg bg-blue-600 text-white">${sanitizedText}</div>`;
+            } else { // agent
+                const icon = `<div class="w-8 h-8 rounded-full bg-gray-600 flex-shrink-0"></div>`;
+                const textDiv = `<div class="p-3 rounded-lg bg-[#444654] text-gray-100">${thinking ? '<span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>' : sanitizedText.replace(/\n/g, '<br>')}</div>`;
+                contentHTML = `${icon}${textDiv}`;
             }
-            entry.innerHTML = content;
-
-            chatLog.appendChild(entry);
-            setTimeout(() => entry.classList.add('visible'), 10);
+            messageDiv.innerHTML = contentHTML;
+            chatLog.appendChild(messageDiv);
             chatLog.scrollTop = chatLog.scrollHeight;
         }
-
-        // --- Main DOMContentLoaded Listener ---
-        document.addEventListener('DOMContentLoaded', () => {
+        
+        function updateLastMessage(text, isSystemMessage = false) {
+            const lastMessage = chatLog.lastElementChild;
+            if (!lastMessage) return;
             
-            // --- HTML Templates ---
-            const webResearcherHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-                        <h2 class="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Assign a Research Task</h2>
-                        <div class="mb-4">
-                            <label for="agent-task-web" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Request:</label>
-                            <input type="text" id="agent-task-web" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" value="What were the main product announcements from Apple's latest event?">
-                        </div>
-                        <button id="run-agent-web" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2z"></polygon></svg>
-                           Run Research Agent
-                       </button>
-                    </div>
-                    <div id="execution-panel-web" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700"></div>
-                </div>`;
+            const sanitizedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            if(isSystemMessage) {
+                lastMessage.innerHTML = `<div class="w-full text-center text-xs italic text-gray-500 dark:text-gray-400 py-2">${sanitizedText}</div>`;
+            } else {
+                 const textContainer = lastMessage.querySelector('.bg-\\[\\#444654\\]');
+                 if(textContainer) {
+                    textContainer.innerHTML = sanitizedText.replace(/\n/g, '<br>');
+                 }
+            }
+        }
+        
+        function resetChat() {
+            chatLog.innerHTML = '';
+            chatHistory = [];
+            currentImageData = null;
+            imagePreviewContainer.classList.add('hidden');
+            chatInput.value = '';
+            addChatMessage({role: 'agent', text: 'Hello! How can I help you today?'});
+        }
+        
+        // --- Event Listeners ---
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userInput = chatInput.value.trim();
+            if (!userInput && !currentImageData) return;
             
-            const imageAnalyzerHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-                        <h2 class="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Analyze an Image</h2>
-                        <div class="mb-4">
-                            <label for="image-upload" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload an image file:</label>
-                            <div id="image-preview" class="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400 mb-2 cursor-pointer">
-                                Click or drag to upload
-                            </div>
-                            <input type="file" id="image-upload" accept="image/*" class="hidden">
-                        </div>
-                        <div class="mb-4">
-                            <label for="agent-task-image" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Request:</label>
-                            <input type="text" id="agent-task-image" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" value="Describe this image in detail.">
-                        </div>
-                        <button id="run-agent-image" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50" disabled>
-                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                           Run Image Agent
-                       </button>
-                    </div>
-                    <div id="execution-panel-image" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700"></div>
-                </div>`;
-
-            const chatAgentHTML = `
-                 <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 max-w-4xl mx-auto">
-                    <h2 class="text-2xl font-semibold mb-4 text-gray-900 dark:text-white text-center">Conversational Agent</h2>
-                    <div id="chat-log" class="h-[60vh] overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
-                    </div>
-                    <form id="chat-form" class="flex items-center space-x-2">
-                        <input type="text" id="chat-input" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="Ask the agent anything...">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-lg flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                        </button>
-                    </form>
-                </div>`;
-
-            // --- View Switching Logic ---
-            const views = {
-                web: document.getElementById('web-researcher-view'),
-                image: document.getElementById('image-analyzer-view'),
-                chat: document.getElementById('chat-agent-view')
-            };
-            const navLinks = {
-                web: document.getElementById('nav-web-researcher'),
-                image: document.getElementById('nav-image-analyzer'),
-                chat: document.getElementById('nav-chat-agent')
-            };
-
-            function setupWebResearcherListeners() {
-                document.getElementById('run-agent-web').addEventListener('click', () => { 
-                    const task = document.getElementById('agent-task-web').value; 
-                    if (task) runAgent('web-researcher', task); 
-                });
-            }
-
-            function setupImageAnalyzerListeners() {
-                const imageUpload = document.getElementById('image-upload');
-                const imagePreview = document.getElementById('image-preview');
-                const runImageAgentBtn = document.getElementById('run-agent-image');
-
-                imagePreview.addEventListener('click', () => imageUpload.click());
-                imageUpload.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            const dataUrl = e.target.result;
-                            imagePreview.style.backgroundImage = `url('${dataUrl}')`;
-                            imagePreview.textContent = '';
-                            currentImageData = { base64: dataUrl.split(',')[1], mimeType: file.type };
-                            runImageAgentBtn.disabled = false;
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-
-                document.getElementById('run-agent-image').addEventListener('click', () => { 
-                    const task = document.getElementById('agent-task-image').value; 
-                    if (task && currentImageData) runAgent('image-analyzer', task); 
-                });
-            }
+            runAgent(userInput || 'Describe this image', currentImageData);
             
-            function setupChatAgentListeners() {
-                 document.getElementById('chat-form').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    const input = document.getElementById('chat-input');
-                    if (input.value.trim()) {
-                        runChatAgent(input.value.trim());
-                        input.value = '';
-                    }
-                });
-            }
-
-            function switchView(viewName) {
-                Object.values(views).forEach(v => { v.innerHTML = ''; v.classList.add('hidden'); });
-                Object.values(navLinks).forEach(l => l.classList.remove('active'));
-
-                views[viewName].classList.remove('hidden');
-                navLinks[viewName].classList.add('active');
-                
-                if (viewName === 'web') {
-                    views.web.innerHTML = webResearcherHTML;
-                    initializeExecutionPanel('execution-panel-web');
-                    setupWebResearcherListeners();
-                } else if (viewName === 'image') {
-                    views.image.innerHTML = imageAnalyzerHTML;
-                    initializeExecutionPanel('execution-panel-image');
-                    setupImageAnalyzerListeners();
-                } else if (viewName === 'chat') {
-                    views.chat.innerHTML = chatAgentHTML;
-                    chatHistory = [];
-                    addChatMessage('agent', 'Hello! How can I help you today?');
-                    setupChatAgentListeners();
-                }
-            }
-
-            navLinks.web.addEventListener('click', (e) => { e.preventDefault(); switchView('web'); });
-            navLinks.image.addEventListener('click', (e) => { e.preventDefault(); switchView('image'); });
-            navLinks.chat.addEventListener('click', (e) => { e.preventDefault(); switchView('chat'); });
-            
-            // Initial setup
-            switchView('web');
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            currentImageData = null;
+            imagePreviewContainer.classList.add('hidden');
         });
+        
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = `${chatInput.scrollHeight}px`;
+        });
+        
+        attachFileBtn.addEventListener('click', () => imageUpload.click());
+        
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                imagePreview.src = dataUrl;
+                imagePreviewContainer.classList.remove('hidden');
+                currentImageData = {
+                    base64: dataUrl.split(',')[1],
+                    mimeType: file.type
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        removeImageBtn.addEventListener('click', () => {
+             currentImageData = null;
+             imagePreviewContainer.classList.add('hidden');
+             imageUpload.value = ''; // Reset file input
+        });
+
+        newChatBtn.addEventListener('click', resetChat);
+        
+        // --- Initial Load ---
+        resetChat();
+
     </script>
 </body>
 </html>
-```
-
-
-### Step-by-Step Guide: Securing Your API Key (Phase 1)
-
-This guide will walk you through creating a secure backend on AWS to protect your Gemini API key. This is the professional standard for handling secret keys and is a critical step in moving from a prototype to a real application.
-
----
-
-### **Step A: Create the Lambda Function**
-
-This function will act as our secure intermediary to the Gemini API.
-
-1.  **Navigate to Lambda:** In the AWS Console, search for and go to the **Lambda** service.
-2.  **Create Function:** Click the **"Create function"** button.
-3.  **Configure:**
-    * Select **"Author from scratch"**.
-    * **Function name:** `invoke-gemini-agent`
-    * **Runtime:** Select **Node.js 20.x** (or the latest Node.js version).
-    * **Architecture:** Leave as `x86_64`.
-4.  Click **"Create function"**.
-
----
-
-### **Step B: Configure the Lambda Function**
-
-Now we'll add the code and the secret API key.
-
-1.  **Add the Code:**
-    * On your new function's page, you'll see a code editor under the **"Code source"** tab.
-    * Delete all the boilerplate code in the `index.mjs` file and **paste the following code**:
-
-    ```javascript
-    // This is the Node.js code for your Lambda function
-    import {-l} from '@aws-sdk/client-secrets-manager'
-
-    export const handler = async (event) => {
-        // Get the prompt from the front-end request
-        const body = JSON.parse(event.body);
-        const model = body.model;
-        const payload = body.payload;
-
-        // Securely get the API key from an environment variable
-        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-
-        try {
-            const response = await fetch(GEMINI_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                throw new Error(`API call failed with status: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            // Return the successful response back to the front end
-            return {
-                statusCode: 200,
-                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, // Enable CORS
-                body: JSON.stringify(data),
-            };
-
-        } catch (error) {
-            console.error("Error:", error);
-            // Return an error response back to the front end
-            return {
-                statusCode: 500,
-                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, // Enable CORS
-                body: JSON.stringify({ message: error.message }),
-            };
-        }
-    };
-  
