@@ -232,7 +232,7 @@
                 const response = await fetch(API_BASE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: model, payload: payload }) // Pass model and payload to Lambda
+                    body: JSON.stringify({ model: model, payload: payload, conversationId: activeConversationId }) // Pass model and payload to Lambda
                 });
     
                 if (!response.ok) {
