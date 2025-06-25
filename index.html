@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     
-    <!-- STEP C.1: ADD THE AMPLIFY JAVASCRIPT LIBRARY -->
+    <!-- Add the Amplify JavaScript library -->
     <script>
         window.global = window;
         var exports = {};
@@ -19,10 +19,6 @@
     <style>
         body {
             font-family: 'Google Sans', 'Inter', sans-serif;
-            background-color: #f0f4f9;
-        }
-        .dark body {
-            background-color: #131314;
         }
         amplify-authenticator {
             --amplify-colors-background-primary: #f0f4f9;
@@ -43,7 +39,7 @@
             --amplify-colors-font-secondary: #d1d5db;
             --amplify-colors-border-primary: #4b5563;
         }
-        /* Other styles from previous version */
+        /* Other styles */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 10px; }
@@ -62,7 +58,6 @@
 </head>
 <body class="bg-white dark:bg-[#131314]">
 
-    <!-- STEP C.2: WRAP YOUR APP IN THE AUTHENTICATOR COMPONENT -->
     <amplify-authenticator>
         <template amplify-sign-out></template>
         <div class="flex h-screen text-gray-800 dark:text-gray-100">
@@ -77,10 +72,10 @@
                     <div id="chat-history-list" class="space-y-1"></div>
                 </div>
                  <div class="border-t border-gray-200 dark:border-gray-700 p-2">
-                    <a href="#" class="flex items-center w-full p-2 text-left text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors">
+                    <div class="flex items-center w-full p-2 text-left text-sm rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        User Profile
-                    </a>
+                        <span id="user-email"></span>
+                    </div>
                 </div>
             </aside>
 
@@ -118,240 +113,254 @@
 
 
     <script type="module">
-        // STEP C.3: ADD THE MANUAL AMPLIFY CONFIGURATION
-        const amplifyConfig = {
-            Auth: {
-                // REQUIRED - Find these values in your Cognito User Pool
-                // See guide for where to find these.
-                userPoolId: 'us-east-1_Sw9J8x02M', // e.g., us-east-1_abcdef123
-                userPoolWebClientId: '7p79rul45hhk9r069uuvn9rpnn', // e.g., 1a2b3c4d5e6f7g8h9i0j
-                region: 'us-east-1' // e.g., us-east-1
+        // FIX: Wrap all logic in a DOMContentLoaded listener to prevent race conditions
+        document.addEventListener('DOMContentLoaded', () => {
+            const { Amplify, API, Auth } = window.aws_amplify;
+
+            const amplifyConfig = {
+                Auth: {
+                    userPoolId: 'us-east-1_Sw9J8x02M', 
+                    userPoolWebClientId: '7p79rul45hhk9r069uuvn9rpnn',
+                    region: 'us-east-1'
+                },
+                API: {
+                    endpoints: [
+                        {
+                            name: "AgentBackendAPI",
+                            endpoint: "https://h6l0hhe0b0.execute-api.us-east-1.amazonaws.com/Dev"
+                        }
+                    ]
+                }
+            };
+            Amplify.configure(amplifyConfig);
+
+            let conversations = {};
+            let activeConversationId = null;
+            let currentImageData = null;
+
+            const chatLog = document.getElementById('chat-log');
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-input');
+            const attachFileBtn = document.getElementById('attach-file-btn');
+            const imageUpload = document.getElementById('image-upload');
+            const imagePreviewContainer = document.getElementById('image-preview-container');
+            const imagePreview = document.getElementById('image-preview');
+            const removeImageBtn = document.getElementById('remove-image-btn');
+            const newChatBtn = document.getElementById('new-chat-btn');
+            const chatHistoryList = document.getElementById('chat-history-list');
+            const userEmailSpan = document.getElementById('user-email');
+            
+            async function checkUser() {
+                try {
+                    const user = await Auth.currentAuthenticatedUser();
+                    userEmailSpan.textContent = user.attributes.email;
+                } catch (error) {
+                    userEmailSpan.textContent = 'Not signed in';
+                }
             }
-        };
-        Amplify.configure(amplifyConfig);
 
+            async function runAgent(userInput, imageData) {
+                const currentConversation = conversations[activeConversationId];
+                addChatMessage({ role: 'user', text: userInput });
+                currentConversation.history.push({ role: 'user', parts: [{ text: userInput }] });
+                if (currentConversation.history.length === 1 && currentConversation.title === "New Chat") {
+                    currentConversation.title = userInput.substring(0, 35) + (userInput.length > 35 ? '...' : '');
+                    renderSidebar();
+                }
+                addChatMessage({ role: 'agent', thinking: true });
 
-        // --- ALL THE PREVIOUS JAVASCRIPT LOGIC ---
-        const API_BASE_URL = "https://h6l0hhe0b0.execute-api.us-east-1.amazonaws.com/Dev"; // PASTE URL FROM PHASE 1
+                const routerPrompt = buildRouterPrompt(userInput, imageData, currentConversation.history);
+                const rawDecision = await callGeminiText("gemini-2.0-flash", routerPrompt);
+                
+                let decision;
+                try {
+                    const jsonString = rawDecision.match(/```json\n([\s\S]*?)\n```/)[1];
+                    decision = JSON.parse(jsonString);
+                } catch (e) {
+                    updateLastMessage("I had trouble understanding that. Could you rephrase?");
+                    return;
+                }
 
-        let conversations = {};
-        let activeConversationId = null;
-        let currentImageData = null;
+                let finalResponse;
+                if (decision.action === 'chat') {
+                    finalResponse = decision.response;
+                } else if (decision.action === 'vision') {
+                    updateLastMessage('Analyzing image...', true);
+                    finalResponse = await callGeminiVision("gemini-2.0-flash", userInput, imageData.mimeType, imageData.base64);
+                } else if (decision.action === 'tool_use') {
+                    updateLastMessage(`Searching for: "${decision.args.query}"...`, true);
+                    const observation = await googleSearchAction(decision.args);
+                    const finalPrompt = `Based on this search result: "${observation}", formulate a natural language response to the user's original request: "${userInput}".`;
+                    finalResponse = await callGeminiText("gemini-2.0-flash", finalPrompt);
+                } else {
+                    finalResponse = "I'm not sure how to handle that request.";
+                }
 
-        const chatLog = document.getElementById('chat-log');
-        const chatForm = document.getElementById('chat-form');
-        const chatInput = document.getElementById('chat-input');
-        const attachFileBtn = document.getElementById('attach-file-btn');
-        const imageUpload = document.getElementById('image-upload');
-        const imagePreviewContainer = document.getElementById('image-preview-container');
-        const imagePreview = document.getElementById('image-preview');
-        const removeImageBtn = document.getElementById('remove-image-btn');
-        const newChatBtn = document.getElementById('new-chat-btn');
-        const chatHistoryList = document.getElementById('chat-history-list');
+                updateLastMessage(finalResponse);
+                currentConversation.history.push({ role: 'model', parts: [{ text: finalResponse }] });
+            }
 
-        async function runAgent(userInput, imageData) {
-            const currentConversation = conversations[activeConversationId];
-            const userMessage = { role: 'user', text: userInput };
-            addChatMessage(userMessage);
-            currentConversation.history.push({ role: 'user', parts: [{ text: userInput }] });
-            if (currentConversation.history.length === 1 && currentConversation.title === "New Chat") {
-                currentConversation.title = userInput.substring(0, 30) + (userInput.length > 30 ? '...' : '');
+            function buildRouterPrompt(userInput, imageData, history) {
+                const historyString = history.slice(-6).map(turn => `${turn.role}: ${turn.parts[0].text}`).join('\n');
+                const toolDescriptions = `google_search: Useful for when you need to answer questions about current events, facts, or information on the internet.`;
+                return `You are a router agent. Your job is to decide the best action to take based on the user's request.\nConversation History:\n${historyString}\nUser's latest request: "${userInput}"\nAvailable Actions:\n1. **chat**: If the request is a greeting, conversational, or something you can answer from general knowledge.\n2. **vision**: If an image is provided. **ONLY use this if an image is present.**\n3. **tool_use**: If the request requires up-to-date information from the internet.\n**Available Tools for 'tool_use':**\n- ${toolDescriptions}\nYou MUST respond with a single JSON object in a markdown code block.${imageData ? `\n**Image has been provided.**\nResponse format for vision: \`\`\`json\n{"action": "vision"}\`\`\`` : `\nResponse format for chat: \`\`\`json\n{"action": "chat", "response": "Your natural language response."}\`\`\`\nResponse format for tool use: \`\`\`json\n{"action": "tool_use", "tool": "google_search", "args": {"query": "The user's search query"}}\`\`\``}`;
+            }
+
+            async function googleSearchAction(args) {
+                const searchPrompt = `Provide a concise answer for the search query: "${args.query}".`;
+                return await callGeminiText("gemini-2.0-flash", searchPrompt);
+            }
+
+            async function callGeminiText(model, prompt) {
+                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                 return await callApi(model, payload);
+            }
+            async function callGeminiVision(model, prompt, mimeType, base64Data) {
+                const payload = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Data } }] }] };
+                return await callApi(model, payload);
+            }
+            
+            async function callApi(model, payload) {
+                try {
+                    const apiName = 'AgentBackendAPI';
+                    const path = '/';
+                    const myInit = {
+                        body: { model, payload, conversationId: activeConversationId },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `${(await Auth.currentSession()).getIdToken().getJwtToken()}`
+                        }
+                    };
+                    const data = await API.post(apiName, path, myInit);
+                    if (data.candidates && data.candidates.length > 0) {
+                        return data.candidates[0].content.parts[0].text;
+                    }
+                    throw new Error("Invalid response from backend");
+                } catch (error) {
+                    console.error("Error calling backend API:", error);
+                    return `Error: ${error.message}`;
+                }
+            }
+            
+            function addChatMessage({ role, text, thinking = false }) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message flex w-full items-start gap-4`;
+                let contentHTML = '';
+                const sanitizedText = text ? text.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+                if (role === 'user') {
+                    messageDiv.classList.add('flex-row-reverse');
+                    const userIcon = `<div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">U</div>`;
+                    contentHTML = `<div class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-gray-800 dark:text-gray-200">${sanitizedText}</div>${userIcon}`;
+                } else {
+                    const agentIcon = `<div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0"><svg class="gemini-gradient-text" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10,0,0,0,2,12A10,10,0,0,0,12,22A10,10,0,0,0,22,12A10,10,0,0,0,12,2ZM15.1,17.5H8.9V15.8H15.1V17.5ZM15.1,14.2H8.9V12.5H15.1V14.2ZM17.8,9.2L16.5,10.5L15.2,9.2L14,10.5L12.8,9.2L11.5,10.5L10.2,9.2L9,10.5L7.8,9.2L6.5,10.5V6.5H17.8V9.2Z"></path></svg></div>`;
+                    const textDiv = `<div class="p-3 rounded-lg bg-gray-100 dark:bg-[#1e1f20] text-gray-800 dark:text-gray-100">${thinking ? '<span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>' : sanitizedText.replace(/\n/g, '<br>')}</div>`;
+                    contentHTML = `${agentIcon}${textDiv}`;
+                }
+                messageDiv.innerHTML = contentHTML;
+                chatLog.appendChild(messageDiv);
+                chatLog.scrollTop = chatLog.scrollHeight;
+            }
+            
+            function updateLastMessage(text, isSystemMessage = false) {
+                 const lastMessage = chatLog.lastElementChild;
+                if (!lastMessage) return;
+                const sanitizedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                if(isSystemMessage) {
+                    lastMessage.innerHTML = `<div class="w-full text-center text-xs italic text-gray-500 dark:text-gray-400 py-2">${sanitizedText}</div>`;
+                } else {
+                     const textContainer = lastMessage.querySelector('.bg-gray-100, .dark\\:bg-\\[\\#1e1f20\\]');
+                     if(textContainer) {
+                        textContainer.innerHTML = sanitizedText.replace(/\n/g, '<br>');
+                     }
+                }
+            }
+            
+            function createNewChat() {
+                const newId = `chat_${Date.now()}`;
+                conversations[newId] = { id: newId, title: "New Chat", history: [] };
+                switchConversation(newId);
+            }
+
+            function switchConversation(id) {
+                activeConversationId = id;
+                chatLog.innerHTML = '';
+                const conversation = conversations[id];
+                if (conversation.history.length === 0) {
+                     addChatMessage({role: 'agent', text: 'Hello! How can I help you today?'});
+                } else {
+                     conversation.history.forEach(turn => {
+                        const message = { role: turn.role, text: turn.parts[0].text };
+                        addChatMessage(message);
+                     });
+                }
                 renderSidebar();
             }
-            addChatMessage({ role: 'agent', thinking: true });
-            const routerPrompt = buildRouterPrompt(userInput, imageData, currentConversation.history);
-            const rawDecision = await callGeminiText("gemini-2.0-flash", routerPrompt, 0.1);
-            let decision;
-            try {
-                const jsonString = rawDecision.match(/```json\n([\s\S]*?)\n```/)[1];
-                decision = JSON.parse(jsonString);
-            } catch (e) {
-                updateLastMessage("I had trouble understanding that. Could you rephrase?");
-                return;
-            }
-            let finalResponse;
-            if (decision.action === 'chat') {
-                finalResponse = decision.response;
-            } else if (decision.action === 'vision') {
-                updateLastMessage('Analyzing image...', true);
-                finalResponse = await callGeminiVision("gemini-2.0-flash", userInput, imageData.mimeType, imageData.base64);
-            } else if (decision.action === 'tool_use') {
-                updateLastMessage(`Searching for: "${decision.args.query}"...`, true);
-                const observation = await googleSearchAction(decision.args);
-                const finalPrompt = `Based on this search result: "${observation}", formulate a natural language response to the user's original request: "${userInput}".`;
-                finalResponse = await callGeminiText("gemini-2.0-flash", finalPrompt, 0.5);
-            } else {
-                finalResponse = "I'm not sure how to handle that request.";
-            }
-            updateLastMessage(finalResponse);
-            currentConversation.history.push({ role: 'model', parts: [{ text: finalResponse }] });
-        }
 
-        function buildRouterPrompt(userInput, imageData, history) {
-            const historyString = history.slice(-6).map(turn => `${turn.role}: ${turn.parts[0].text}`).join('\n');
-            const toolDescriptions = `google_search: Useful for when you need to answer questions about current events, facts, or information on the internet.`;
-            let prompt = `You are a router agent. Your job is to decide the best action to take based on the user's request.\nConversation History:\n${historyString}\nUser's latest request: "${userInput}"\nAvailable Actions:\n1. **chat**: If the request is a greeting, conversational, or something you can answer from general knowledge.\n2. **vision**: If an image is provided. **ONLY use this if an image is present.**\n3. **tool_use**: If the request requires up-to-date information from the internet.\n**Available Tools for 'tool_use':**\n- ${toolDescriptions}\nYou MUST respond with a single JSON object in a markdown code block.`;
-            if (imageData) {
-                 prompt += `\n**Image has been provided.**\nResponse format for vision: \`\`\`json\n{"action": "vision"}\`\`\``;
-            } else {
-                 prompt += `\nResponse format for chat: \`\`\`json\n{"action": "chat", "response": "Your natural language response."}\`\`\`\nResponse format for tool use: \`\`\`json\n{"action": "tool_use", "tool": "google_search", "args": {"query": "The user's search query"}}\`\`\``;
-            }
-            return prompt;
-        }
-
-        async function googleSearchAction(args) {
-            const searchPrompt = `Provide a concise answer for the search query: "${args.query}".`;
-            return await callGeminiText("gemini-2.0-flash", searchPrompt, 0.5);
-        }
-
-        async function callGeminiText(model, prompt, temperature = 0.2) {
-             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-             return await callGemini(model, payload);
-        }
-        async function callGeminiVision(model, prompt, mimeType, base64Data) {
-            const payload = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Data } }] }] };
-            return await callGemini(model, payload);
-        }
-        
-        async function callGemini(model, payload) {
-            try {
-                const response = await fetch(API_BASE_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: model, payload: payload, conversationId: activeConversationId })
+            function renderSidebar() {
+                chatHistoryList.innerHTML = '';
+                Object.values(conversations).reverse().forEach(convo => {
+                    const item = document.createElement('a');
+                    item.href = "#";
+                    item.className = `sidebar-item block p-2 text-sm rounded-lg truncate transition-colors ${convo.id === activeConversationId ? 'active font-semibold' : 'hover:bg-gray-200 dark:hover:bg-[#2d2e30]'}`;
+                    item.textContent = convo.title;
+                    item.dataset.id = convo.id;
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        switchConversation(convo.id);
+                    });
+                    chatHistoryList.appendChild(item);
                 });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `API call failed with status: ${response.status}`);
-                }
-                const data = await response.json();
-                if (data.candidates && data.candidates.length > 0) {
-                    return data.candidates[0].content.parts[0].text;
-                }
-                throw new Error(`API call returned no candidates.`);
-            } catch (error) {
-                console.error("Error calling backend API:", error);
-                return `Error: ${error.message}`;
             }
-        }
-        
-        function addChatMessage({ role, text, thinking = false }) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message flex w-full items-start gap-4`;
-            let contentHTML = '';
-            const sanitizedText = text ? text.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
-            if (role === 'user') {
-                messageDiv.classList.add('flex-row-reverse');
-                const userIcon = `<div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">U</div>`;
-                contentHTML = `<div class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-gray-800 dark:text-gray-200">${sanitizedText}</div>${userIcon}`;
-            } else {
-                const agentIcon = `<div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0"><svg class="gemini-gradient-text" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10,0,0,0,2,12A10,10,0,0,0,12,22A10,10,0,0,0,22,12A10,10,0,0,0,12,2ZM15.1,17.5H8.9V15.8H15.1V17.5ZM15.1,14.2H8.9V12.5H15.1V14.2ZM17.8,9.2L16.5,10.5L15.2,9.2L14,10.5L12.8,9.2L11.5,10.5L10.2,9.2L9,10.5L7.8,9.2L6.5,10.5V6.5H17.8V9.2Z"></path></svg></div>`;
-                const textDiv = `<div class="p-3 rounded-lg bg-gray-100 dark:bg-[#1e1f20]">${thinking ? '<span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>' : sanitizedText.replace(/\n/g, '<br>')}</div>`;
-                contentHTML = `${agentIcon}${textDiv}`;
-            }
-            messageDiv.innerHTML = contentHTML;
-            chatLog.appendChild(messageDiv);
-            chatLog.scrollTop = chatLog.scrollHeight;
-        }
-        
-        function updateLastMessage(text, isSystemMessage = false) {
-            const lastMessage = chatLog.lastElementChild;
-            if (!lastMessage) return;
-            const sanitizedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            if(isSystemMessage) {
-                lastMessage.innerHTML = `<div class="w-full text-center text-xs italic text-gray-500 dark:text-gray-400 py-2">${sanitizedText}</div>`;
-            } else {
-                 const textContainer = lastMessage.querySelector('.bg-gray-100, .dark\\:bg-\\[\\#1e1f20\\]');
-                 if(textContainer) {
-                    textContainer.innerHTML = sanitizedText.replace(/\n/g, '<br>');
-                 }
-            }
-        }
-        
-        function createNewChat() {
-            const newId = `chat_${Date.now()}`;
-            conversations[newId] = { id: newId, title: "New Chat", history: [] };
-            switchConversation(newId);
-        }
-
-        function switchConversation(id) {
-            activeConversationId = id;
-            chatLog.innerHTML = '';
-            const conversation = conversations[id];
-            if (conversation.history.length === 0) {
-                 addChatMessage({role: 'agent', text: 'Hello! How can I help you today?'});
-            } else {
-                 conversation.history.forEach(turn => {
-                    const message = { role: turn.role, text: turn.parts[0].text };
-                    addChatMessage(message);
-                 });
-            }
-            renderSidebar();
-        }
-
-        function renderSidebar() {
-            chatHistoryList.innerHTML = '';
-            Object.values(conversations).reverse().forEach(convo => {
-                const item = document.createElement('a');
-                item.href = "#";
-                item.className = `sidebar-item block p-2 text-sm rounded-lg truncate transition-colors ${convo.id === activeConversationId ? 'active font-semibold' : 'hover:bg-gray-200 dark:hover:bg-[#2d2e30]'}`;
-                item.textContent = convo.title;
-                item.dataset.id = convo.id;
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    switchConversation(convo.id);
-                });
-                chatHistoryList.appendChild(item);
-            });
-        }
-        
-        chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const userInput = chatInput.value.trim();
-            if (!userInput && !currentImageData) return;
-            runAgent(userInput || 'Describe this image', currentImageData);
-            chatInput.value = '';
-            chatInput.style.height = 'auto';
-            currentImageData = null;
-            imagePreviewContainer.classList.add('hidden');
-        });
-        
-        chatInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            
+            chatForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                chatForm.requestSubmit();
-            }
-        });
+                const userInput = chatInput.value.trim();
+                if (!userInput && !currentImageData) return;
+                runAgent(userInput || 'Describe this image', currentImageData);
+                chatInput.value = '';
+                chatInput.style.height = 'auto';
+                currentImageData = null;
+                imagePreviewContainer.classList.add('hidden');
+            });
+            
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    chatForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+            });
 
-        chatInput.addEventListener('input', () => {
-            chatInput.style.height = 'auto';
-            chatInput.style.height = `${chatInput.scrollHeight}px`;
-        });
-        
-        attachFileBtn.addEventListener('click', () => imageUpload.click());
-        
-        imageUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const dataUrl = e.target.result;
-                imagePreview.src = dataUrl;
-                imagePreviewContainer.classList.remove('hidden');
-                currentImageData = { base64: dataUrl.split(',')[1], mimeType: file.type };
-            };
-            reader.readAsDataURL(file);
-        });
-        
-        removeImageBtn.addEventListener('click', () => {
-             currentImageData = null;
-             imagePreviewContainer.classList.add('hidden');
-             imageUpload.value = '';
-        });
+            chatInput.addEventListener('input', () => {
+                chatInput.style.height = 'auto';
+                chatInput.style.height = `${chatInput.scrollHeight}px`;
+            });
+            
+            attachFileBtn.addEventListener('click', () => imageUpload.click());
+            
+            imageUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const dataUrl = e.target.result;
+                    imagePreview.src = dataUrl;
+                    imagePreviewContainer.classList.remove('hidden');
+                    currentImageData = { base64: dataUrl.split(',')[1], mimeType: file.type };
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            removeImageBtn.addEventListener('click', () => {
+                 currentImageData = null;
+                 imagePreviewContainer.classList.add('hidden');
+                 imageUpload.value = '';
+            });
 
-        newChatBtn.addEventListener('click', createNewChat);
-        
-        createNewChat();
+            newChatBtn.addEventListener('click', createNewChat);
+            
+            checkUser();
+            createNewChat();
+        });
 
     </script>
 </body>
