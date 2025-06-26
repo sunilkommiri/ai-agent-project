@@ -45,9 +45,11 @@
         }
          .sidebar-item.active {
             background-color: #e8f0fe;
+            color: #1f2937; /* Ensure text is dark on light active background */
         }
         .dark .sidebar-item.active {
             background-color: #2d2e30;
+            color: #f9fafb; /* Ensure text is light on dark active background */
         }
         /* Thinking dots animation */
         .thinking-dots span {
@@ -71,10 +73,10 @@
 </head>
 <body class="bg-white dark:bg-[#131314]">
 
-    <div class="flex h-screen text-gray-800 dark:text-gray-100">
+    <div class="flex h-screen">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-100 dark:bg-[#1e1f20] flex flex-col p-2 space-y-2">
-            <button id="new-chat-btn" class="flex items-center w-full p-2 text-left text-sm rounded-full hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors font-medium text-gray-800 dark:text-gray-100">
+        <aside class="w-64 bg-gray-100 dark:bg-[#1e1f20] flex flex-col p-2 space-y-2 text-gray-800 dark:text-gray-100">
+            <button id="new-chat-btn" class="flex items-center w-full p-2 text-left text-sm rounded-full hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors font-medium">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 New Chat
             </button>
@@ -85,7 +87,7 @@
                 </div>
             </div>
              <div class="border-t border-gray-200 dark:border-gray-700 p-2">
-                <a href="#" class="flex items-center w-full p-2 text-left text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors text-gray-800 dark:text-gray-100">
+                <a href="#" class="flex items-center w-full p-2 text-left text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-[#2d2e30] transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                     User Profile
                 </a>
@@ -222,7 +224,7 @@
                 const response = await fetch(API_BASE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: model, payload: payload })
+                    body: JSON.stringify({ model: model, payload: payload, conversationId: activeConversationId })
                 });
 
                 if (!response.ok) {
