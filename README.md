@@ -1,63 +1,57 @@
-AI Agent Platform
-Overview
+**AI Agent Platform**
+**Overview**
 This project is a full-stack, serverless AI Agent application built on AWS. It provides a modern, chat-based interface inspired by Google's Gemini, allowing users to have interactive conversations with an AI powered by the Google Gemini API.
 
 The agent is designed to be intelligent and stateful, capable of holding natural conversations, using tools like Google Search to answer questions, and remembering past conversations for a continuous user experience. The entire application is secured with user authentication.
 
+**Features**
+**Modern Chat UI:** A clean, responsive user interface built with HTML and Tailwind CSS, inspired by modern AI chat applications.
 
-(You can add a screenshot of the architecture diagram here)
+**Intelligent Agent:** The agent uses the Google Gemini API to understand and respond to user queries.
 
-Features
-Modern Chat UI: A clean, responsive user interface built with HTML and Tailwind CSS, inspired by modern AI chat applications.
+**Tool Use**: The agent can decide when it needs to use external tools (like Google Search) to find up-to-date information.
 
-Intelligent Agent: The agent uses the Google Gemini API to understand and respond to user queries.
+**P****ersistent Memory**: Conversations are saved on a per-user basis using Amazon DynamoDB, allowing for stateful, long-term interactions.
 
-Tool Use: The agent can decide when it needs to use external tools (like Google Search) to find up-to-date information.
+**Secure Authentication**: User sign-up and sign-in are handled by Amazon Cognito, and the backend API is protected, allowing access only to authenticated users.
 
-Persistent Memory: Conversations are saved on a per-user basis using Amazon DynamoDB, allowing for stateful, long-term interactions.
+**Serverless Architecture:** The entire backend is built on a scalable and cost-effective serverless architecture using AWS Lambda, API Gateway, and DynamoDB.
 
-Secure Authentication: User sign-up and sign-in are handled by Amazon Cognito, and the backend API is protected, allowing access only to authenticated users.
+**CI/CD Deployment:** The front end is hosted on AWS Amplify and connected to this GitHub repository for continuous integration and deployment.
 
-Serverless Architecture: The entire backend is built on a scalable and cost-effective serverless architecture using AWS Lambda, API Gateway, and DynamoDB.
-
-CI/CD Deployment: The front end is hosted on AWS Amplify and connected to this GitHub repository for continuous integration and deployment.
-
-Tech Stack
-Front End
+**Tech Stack
+Front End**
 HTML5
-
 Tailwind CSS
-
 JavaScript (ESM)
-
 AWS Amplify JS Library
 
-Back End (Serverless)
+**Back End (Serverless)**
 Compute: AWS Lambda (Node.js)
 
-API: Amazon API Gateway (REST API)
+**API**: Amazon API Gateway (REST API)
 
-Database: Amazon DynamoDB (NoSQL)
+**Database**: Amazon DynamoDB (NoSQL)
 
-Authentication: Amazon Cognito
+**Authentication**: Amazon Cognito
 
-AI Model: Google Gemini API
+**AI Model:** Google Gemini API
 
-Deployment
-Hosting & CI/CD: AWS Amplify
+**Deployment**
+**Hosting & CI/CD**: AWS Amplify
 
-Setup and Deployment
+**Setup and Deployment**
 This project requires an AWS account and a Google AI Studio account to obtain a Gemini API key.
 
-Backend Setup (AWS):
+**Backend Setup (AWS):**
 
 Phase 1: Secure Backend: Set up the AWS Lambda function and Amazon API Gateway as described in the development guide to create a secure endpoint and protect the Gemini API key.
 
 Phase 2: Persistent Memory: Create the Amazon DynamoDB table and update the Lambda function's IAM role and code to enable conversation history.
 
 Phase 3: Authentication: Create an Amazon Cognito User Pool and configure it as an authorizer for the API Gateway to secure the API.
-
-Front-End Setup:
+**
+Front-End Setup:**
 
 Clone this repository.
 
