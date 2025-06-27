@@ -11,7 +11,7 @@ The agent is designed to be intelligent and stateful, capable of holding natural
 
 **Tool Use**: The agent can decide when it needs to use external tools (like Google Search) to find up-to-date information.
 
-**P****ersistent Memory**: Conversations are saved on a per-user basis using Amazon DynamoDB, allowing for stateful, long-term interactions.
+**Persistent Memory**: Conversations are saved on a per-user basis using Amazon DynamoDB, allowing for stateful, long-term interactions.
 
 **Secure Authentication**: User sign-up and sign-in are handled by Amazon Cognito, and the backend API is protected, allowing access only to authenticated users.
 
